@@ -1,0 +1,25 @@
+---
+- name: Automated RHEL Security Patching
+  hosts: linux_servers
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check available root disk space
+      ansible.builtin.assert:
+        that:
+          - (ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_available') | first | int) > 2147483648
+        fail_msg: "Less than 2 GB free on root filesystem"
+        success_msg: "Root filesystem has sufficient free space"
+
+    - name: Install available secrity updated
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        security: true
+        update_cache: true
+      register: patch_result
+
+    - name: Display patching result
+      ansible.builtin.debug:
+        msg: "Patchng task changed packages: {{ patch_result.changed }}"

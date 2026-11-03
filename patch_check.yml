@@ -1,0 +1,18 @@
+---
+- name: Check available RHEL updates
+  hosts: linux_servers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check available package updates
+      ansible.builtin.command: dnf check-update
+      register: update_result
+      failed_when: update_result.rc not in [0, 100]
+
+    - name: Display update information
+      ansible.builtin.debug:
+        var: update_result.stdout_lines
+
+    - name: Diaplay update status
+      ansible.builtin.debug:
+        msg: "{{ 'Updates are available' if update_result.rc == 100 else 'System is up to date' }}"

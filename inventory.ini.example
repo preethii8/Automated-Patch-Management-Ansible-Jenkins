@@ -1,0 +1,2 @@
+[linux_servers]
+target-server ansible_host=YOUR_SERVER_IP ansible_user=YOUR_SSH_USER

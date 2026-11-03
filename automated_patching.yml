@@ -1,0 +1,82 @@
+
+---
+- name: Automated Patch Management for RHEL Servers
+  hosts: linux_servers
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check available root disk space
+      ansible.builtin.assert:
+        that:
+          - (ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_available') | first | int) > 2147483648
+        fail_msg: "Insufficient root disk space for patching"
+        success_msg: "Root disk space check passed"
+
+    - name: Check available boot partition space
+      ansible.builtin.assert:
+        that:
+          - (ansible_mounts | selectattr('mount', 'equalto', '/boot') | map(attribute='size_available') | first | int) > 314572800
+        fail_msg: "Less than 300 MiB available in /boot. Patching stopped."
+        success_msg: "Boot partition space check passed."
+
+    - name: Install available security updates
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        security: true
+        update_cache: true
+      register: patch_result
+
+    - name: Display patching status
+      ansible.builtin.debug:
+        msg: "Packages updated: {{ patch_result.changed }}"
+
+    - name: Reboot server after updates
+      ansible.builtin.reboot:
+        reboot_timeout: 900
+      when:
+        - patch_result.changed
+        - not ansible_check_mode
+
+    - name: Verify running kernel
+      ansible.builtin.command: uname -r
+      register: kernel_result
+      changed_when: false
+      check_mode: false
+
+    - name: Display running kernel
+      ansible.builtin.debug:
+        var: kernel_result.stdout
+
+    - name: Check disk usage after patching
+      ansible.builtin.command: df -h /
+      register: disk_result
+      changed_when: false
+      check_mode: false
+
+    - name: Display disk usage
+      ansible.builtin.debug:
+        var: disk_result.stdout
+
+    - name: Check boot partition usage
+      ansible.builtin.command: df -h /boot
+      register: boot_result
+      changed_when: false
+      check_mode: false
+
+    - name: Display boot partition usage
+      ansible.builtin.debug:
+        var: boot_result.stdout
+
+    - name: Check memory after patching
+      ansible.builtin.command: free -h
+      register: memory_result
+      changed_when: false
+      check_mode: false
+
+    - name: Display memory usage
+      ansible.builtin.debug:
+        var: memory_result.stdout
+
+
